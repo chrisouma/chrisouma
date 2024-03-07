@@ -1,0 +1,93 @@
+---
+title: "Weather DAta"
+author: "Chrisphine"
+date: "2024-03-06"
+output: html_document
+---
+
+```{r}
+library(readxl)
+weather_data <- read_excel("C:/Users/Admin/Downloads/weather data.xlsx")
+View(weather_data)
+attach(weather_data)
+#view first few rows of the data
+head(weather_data)
+#summary statistics
+summary(weather_data)
+#check for missing values
+any(is.na(weather_data))
+#Data cleaning and preprocessing
+#Remove duplicate rows
+weather_data<-unique(weather_data)
+#Performing EDA
+#Histogram
+hist(Temp_C)
+hist(`Wind Speed_km/h`)
+hist(`Dew Point Temp_C`)
+hist(Press_kPa)
+hist(`Rel Hum_%`)
+hist(Visibility_km)
+#boxplot
+boxplot(`Wind Speed_km/h`)
+boxplot(`Dew Point Temp_C`)
+boxplot(Press_kPa)
+boxplot(`Rel Hum_%`)
+boxplot(Visibility_km)
+# Calculate interquartile range
+Q1 <- quantile(`Wind Speed_km/h`, 0.25)
+Q3 <- quantile(`Wind Speed_km/h`, 0.75)
+IQR <- Q3 - Q1
+
+# Define outlier boundaries
+lower_bound <- Q1 - 1.5 * IQR
+upper_bound <- Q3 + 1.5 * IQR
+model1<-lm(Temp_C~`Wind Speed_km/h`+`Dew Point Temp_C`+`Rel Hum_%`+Press_kPa+Visibility_km)
+summary(model1)
+confint(model1)
+anova(model1)
+#Time series
+library(tseries)
+#Declaring the dataset to be a time series dataset
+weather_dataseries<-ts(weather_data,start = c(2012,1),frequency = 1)
+#Unit root test using Augmented Dickey Fuller
+adf.test(Temp_C)
+adf.test(`Dew Point Temp_C`)
+adf.test(`Rel Hum_%`)
+adf.test(Press_kPa)
+adf.test(Visibility_km)
+adf.test(`Wind Speed_km/h`)
+#ACF and PACF for the variables
+acf(Temp_C)
+pacf(Temp_C)
+acf(`Dew Point Temp_C`)
+pacf(`Dew Point Temp_C`)
+acf(`Rel Hum_%`)
+pacf(`Rel Hum_%`)
+acf(Press_kPa)
+pacf(Press_kPa)
+acf(Visibility_km)
+pacf(Visibility_km)
+acf(`Wind Speed_km/h`)
+pacf(`Wind Speed_km/h`)
+#differencing Temp_c data to be stationary
+Temp_C1<-diff(Temp_C,differences = 1)
+adf.test(Temp_C1)
+plot(Temp_C1)
+plot(`Dew Point Temp_C`)
+plot(`Rel Hum_%`)
+plot(Press_kPa)
+plot(Visibility_km)
+plot(`Wind Speed_km/h`)
+#Lag selection
+library(vars)
+dset<-cbind(Temp_C1,`Dew Point Temp_C`,`Rel Hum_%`,`Wind Speed_km/h`,Visibility_km,Press_kPa)
+#creating a heatmap for the dataset
+library(pheatmap)
+pheatmap(dset, cluster_rows = TRUE, cluster_cols = TRUE)
+lagselect<-VARselect(dset,lag.max = 10,type = "const")
+lagselect$selection
+#Vector Autoregressive Model
+Model2<-VAR(dset,type = "trend",lag.max = 10)
+summary(Model2)
+```
+
