@@ -1,0 +1,100 @@
+---
+title: "SPAM EMAIL CLASSIFICATION"
+author: "Chrisphine"
+date: "2024-05-03"
+output: html_document
+---
+
+```{r}
+library(DAAG)
+data("spam7")
+View(spam7)
+head(spam7,100)
+attach(spam7)
+hist(crl.tot)
+hist(dollar)
+hist(n000)
+##building decision trees 
+library(rpart)
+#setting a seed to enable replicating of the results
+set.seed(1234)
+#generate a random array of length 4601 indicating for every email
+#whether it belongs to either set 1 or set 2
+ind<-sample(2,nrow(spam7),replace = T,prob = c(0.5,0.5))
+#let set 1 become training set
+train<-spam7[ind==1,]
+#let set 2 be testing set
+test<-spam7[ind==2,]
+#Tree classification
+tree<-rpart(yesno~.,data = train)
+library(rpart.plot)
+rpart.plot(tree,type = 1,extra = 1)
+# displaying the candidate cp value (complexity parameter)
+#the lower the complexity, the bigger the tree
+#smaller CPs may lead to overfitting
+printcp(tree)
+plotcp(tree)
+#construct tree with cp value of 0.0744
+tree<-rpart(yesno~.,data = train,cp=0.0744)
+rpart.plot(tree,type = 1,extra = 1)
+p<-predict(tree,train,type = "class")
+#calculating confusion matrix
+library(caret)
+confusionMatrix(p,train$yesno,positive = "y")
+#receiver operating characteristics (ROC) curve
+p1<-predict(tree,test,type = "prob")
+p1<-p1[,2]
+library(pROC)
+r<-multiclass.roc(test$yesno,p1,percent=TRUE)
+roc<-r[['rocs']]
+r1<-roc[[1]]
+plot.roc(r1,print.auc = TRUE,auc.polygon = TRUE,grid = c(0.1,0.2),grid.col = c("navyblue","red"),max.auc.polygon = TRUE,auc.polygon.col = "lightblue",print.thres = TRUE,main='ROC CURVE')
+##Building regression trees
+#Linear regression model
+library(tidyverse)
+library(finalfit)
+library(Metrics)
+library(broom)
+library(readxl)
+gender_height_weight_data <- read_excel("C:/Users/Admin/Downloads/gender-height-weight data.xlsx")
+View(gender_height_weight_data)
+gender_height_weight_data %>% ggplot(aes(y=`Height (cm)`,x=`Weight (kg)`,colour =Gender))+geom_point(alpha=0.2)+geom_smooth(method = "lm",se=FALSE)
+#splitting dataset into training and testing
+trainset<-gender_height_weight_data[seq(1,nrow(gender_height_weight_data),2),]
+testset<-gender_height_weight_data[seq(2,nrow(gender_height_weight_data),2),]
+#extracting the features weight in kg, height in cm and gender
+trainweight<-trainset[,5]
+trainheight<-trainset[,4]
+trainsex<-trainset[,1]
+#set the training features
+testweight<-testset[,5]
+testheight<-testset[,4]
+#viewing structure of trainheight and trainweight
+str(trainweight)
+str(trainheight)
+dim(trainheight)
+dim(trainweight)
+#converting them to numeric elements
+trainweight<-trainweight[[1]]
+trainheight<-trainheight[[1]]
+#create a linear regression model
+trainheight_numeric <- unlist(trainheight)
+trainweight_numeric<-unlist(trainweight)
+fit<-lm(trainweight_numeric~trainheight_numeric)
+plot(trainheight_numeric,trainweight_numeric,col="blue",xlab="height (cm)",ylab="weight (kg)")
+abline(fit,col="black")
+#Print fit to view the coefficients
+pred_weight<-2.5*testheight-160
+pred_weight1<-unlink(pred_weight)
+testheight1<-unlist(testheight)
+Error<-mean(pred_weight1 - testheight1)
+print(pred_weight)
+print(Error)
+#Calculate the Root mean squared error
+rmse<-sqrt((pred_weight1-testheight1)^2)/length(pred_weight1)
+print(rmse)
+fit%>%glance()
+summary(fit)
+
+```
+
