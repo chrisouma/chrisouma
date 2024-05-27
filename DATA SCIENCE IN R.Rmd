@@ -1,0 +1,136 @@
+---
+title: "Data science in R"
+author: "Chrisphine"
+date: "2024-05-27"
+output: html_document
+---
+
+```{r}
+library(readxl)
+test_data <- read_excel("C:/Users/Admin/Downloads/test_data.xlsx")
+View(test_data)
+library(dplyr)
+#Select numerical features
+numericalfeatures<-test_data%>%select_if(is.numeric)
+#Perform feature scaling using the scale() function
+scaled_features<-scale(numericalfeatures)
+#Convert scaled features back to a dataframe
+scaled_df<-as.data.frame(scaled_features)
+#Viewing first few rows of the dataset
+head(scaled_df)
+#Checking for missing values in both the original data and scaled dataframe
+any(is.na(test_data))
+any(is.na(scaled_df))
+#Visualization
+library(ggplot2)
+library(plotly)
+#create a scatter plot
+attach(test_data)
+plot1<-ggplot(data = test_data,aes(x=`Systolic Blood Pressure`,y=`Heart Rate`))+geom_point()
+labs(title = 'Systolic Blood Pressure vs Heart rate scatter plot',x='Systolic lood Pressure',y='Heart Rate')
+plotly::ggplotly(plot1)
+#Adjusting Axis limits
+plot1<-ggplot(data = test_data,aes(x=`Systolic Blood Pressure`,y=`Heart Rate`))+geom_point()
+labs(title = 'Systolic Blood Pressure vs Heart rate scatter plot with adjusted Axis limits',x='Systolic lood Pressure',y='Heart Rate')
+xlim(2,4)
+ylim(1,2.5)
+ggplotly(plot1)
+library(readxl)
+Wage_differentials <- read_excel("C:/Users/Admin/Downloads/Wage differentials.xlsx")
+View(Wage_differentials)
+attach(Wage_differentials)
+model1<-lm(`Compensation(Y$/hr)`~`Length of employment(X months)`)
+summary(model1)
+coef(model1)
+#plotting
+plot2 <- ggplot(data = Wage_differentials, aes(x = `Length of employment(X months)`, y = `Compensation(Y$/hr)`)) +
+  geom_point(color = 'red') +
+  geom_abline(slope = coef(model1)[['`Length of employment(X months)`']], intercept = coef(model1)[['(Intercept)']], color = 'blue') +
+  labs(title = 'Compensation per length of employment', x = 'Length of employment (X months)', y = 'Compensation (Y$/hr)') +
+  theme_linedraw()
+ggplotly(plot2)
+#Performing K-means Clustering
+#we'll use the test data
+#Extract relevant columns for clustering
+testdata<-test_data[,1:24]
+stats::kmeans(testdata,centers = 4,nstart = 10)
+#Perform K-means clustering with  4 clusters
+#setting seed for reproducibility
+set.seed(1234)
+kmeans_result<-kmeans(testdata,centers = 4)
+#visualize the clusters
+kmeansplot<-ggplot(test_data,aes(`Systolic Blood Pressure`,`Diastolic Blood Pressure`,color=factor(kmeans_result$cluster)))+geom_point()+labs(title = 'K-means clustering of Test Dataset',x='`Systolic Blood Pressure`',y='`Diastolic Blood Pressure`',color='Cluster')+theme_minimal()
+ggplotly(kmeansplot)
+#Determining the number of clusters
+#Perform K-means clustering with 4 clusters
+#setting seed for reproducibility
+ks<-1:6
+tot_within_ss<-sapply(ks, function(k) {
+    cl <- kmeans(testdata, k, nstart = 10)
+    cl$tot.withinss})
+km_df<-data.frame(ks,tot_within_ss)
+kmeansplot2<-ggplot(km_df)+aes(x=ks,y=tot_within_ss)+geom_line(colour='blue')+geom_point(size=2)+labs(title = 'Elbow method for K-mean',x='No of clusters',y='Total within-cluster SS')+geom_vline(xintercept = 2,colour='red',linetype='dotted')+theme_minimal()
+ggplotly(kmeansplot2)
+ks<-1:4
+tot_within_ss<-sapply(ks, function(k) {
+    cl <- kmeans(testdata, k, nstart = 10)
+    cl$tot.withinss})
+km_df<-data.frame(ks,tot_within_ss)
+kmeansplot2<-ggplot(km_df)+aes(x=ks,y=tot_within_ss)+geom_line(colour='blue')+geom_point(size=2)+labs(title = 'Elbow method for K-mean',x='No of clusters',y='Total within-cluster SS')+geom_vline(xintercept = 2,colour='red',linetype='dotted')+theme_minimal()
+ggplotly(kmeansplot2)
+library(factoextra)
+library(NbClust)
+#Elbow method
+fviz_nbclust(testdata,kmeans,method = "wss")+geom_vline(xintercept =4,linetype=2)+labs(subtitle = 'Eblow method')
+#Silhouette method
+fviz_nbclust(testdata,kmeans,method = 'silhouette')+labs(subtitle = 'Silhouette method')
+#Gap statistics
+set.seed(123)
+fviz_nbclust(testdata,kmeans,nstart=50,method = 'gap_stat',nboot = 500)+labs(subtitle = 'Gap statistics method')
+#Hierarchical clustering
+library(dendextend)
+ Train_data <- read_excel("C:/Users/Admin/Downloads/Train_data.xlsx")
+ View(Train_data)
+ attach(Train_data)
+ #extract relevant columns for clustering
+ traindata<-Train_data[,1:24]
+ #Perform hierarchical clustering using complete linkage
+ dend<-dist(traindata)%>% hclust(method = 'complete')%>%as.dendrogram()
+ dend1<-color_branches(dend,5)
+ #Plot the dendrogram
+ dendplot<-ggplot(dend1,horiz=F,offset_labels=-3)+labs(title ='Dendrogram')
+ ggplotly(dendplot)
+ #Using dendrogram to determine number of clusters
+ dendplot1<-ggplot(dend1,horiz=F,offset_labels=-3)+geom_hline(aes(yintercept=2.5,color='red'))+labs(title = 'Dendrogram')
+ ggplotly(dendplot1)
+ #Comparing with K-means
+ library(cowplot)
+ km<-kmeans(Train_data[,1:24],centers = 3,nstart = 10)
+ hcl<-hclust(dist(Train_data[,1:24]))
+ df1<-data.frame(`Systolic Blood Pressure`=Train_data$`Systolic Blood Pressure`,heartrate=Train_data$`Diastolic Blood Pressure`,cluster=as.factor(km$cluster))
+df2<-data.frame(`Systolic Blood Pressure`=Train_data$`Systolic Blood Pressure`,heartrate=Train_data$`Diastolic Blood Pressure`,cluster=as.factor(km$cluster))
+#plots
+p1<-ggplot(df1)+aes(x='`Systolic Blood Pressure`',y='heartrate',colour=cluster)+geom_point(shape='circle',size=2)+scale_color_hue(direction = 1)+labs(title = 'K-Means')+theme_minimal()+theme(plot.title = element_text(size = 10L,face = 'bold.italic'))
+p2<-ggplot(df2)+aes(x='`Systolic Blood Pressure`',y='heartrate',colour=cluster)+geom_point(shape='circle',size=2)+scale_color_hue(direction = 1)+labs(title = 'Hierarchical Clustering')+theme_minimal()+theme(plot.title = element_text(size = 10L,face = 'bold.italic'))
+plot_grid(p1,p2,ncol = 2)
+#Performing principal component analysis on the train data (excluding the disease column)
+pca_result<-prcomp(Train_data[,-25],center = TRUE,scale. = TRUE)
+#Print the PCA results
+summary(pca_result)
+#Visualizing the components using a biplot
+library(AMR)
+pcaplot<-ggplot_pca(pca_result)+theme_minimal()+labs(title = 'PCA Biplot')
+ggplotly(pcaplot)
+#Performing t-SNE
+#Remove duplicated entries in the train dataset
+train_unique<-unique(Train_data)
+#perform t-SNE on the train dataset(excluding the disease column)
+library(Rtsne)
+tsne_result<-Rtsne(train_unique[,-25],check_duplicates=FALSE,perplexity=10)
+df_tsne<-data.frame(tsne_result$Y,Disease=as.factor(train_unique$Disease))
+tsneplot<-ggplot(df_tsne)+aes(x=X1,y=X2,colour=Disease)+geom_point(shape='circle',size=2)+scale_color_hue(direction = 1)+labs(title = 't-SNE Clustering')+theme_minimal()+theme(plot.title = element_text(size=10L,face = 'bold.italic'))
+ggplotly(tsneplot)
+tsne_result
+
+```
+
