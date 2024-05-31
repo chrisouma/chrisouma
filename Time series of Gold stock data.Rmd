@@ -1,0 +1,71 @@
+---
+title: "Time series Analysis"
+author: "Chrisphine"
+date: "2024-05-27"
+output: html_document
+---
+
+```{r}
+library(readxl)
+Gold_stock_data <- read_excel("C:/Users/Admin/Downloads/Gold stock data.xlsx")
+View(Gold_stock_data)
+#Checking for missing values
+any(is.na(Gold_stock_data))
+#Checking for duplicate values
+duplicated(Gold_stock_data)
+library(quantmod)
+head(Gold_stock_data,100)
+#Basic time series plots
+library(ggplot2)
+library(plotly)
+library(tseries)
+Gold_stock_data<-as.data.frame(Gold_stock_data)
+plot<-ggplot(Gold_stock_data,aes(x=Date,y=Close))+geom_line(color='green')+labs(title = 'Gold stock prices',x='Date',y='Closing price')
+ggplotly(plot)
+#Declaring time series object
+library(ggfortify)
+Goldseries<-ts(Gold_stock_data,start = 2020,frequency = 25)
+#view the series
+seriesplot<-autoplot(Goldseries,colour = I('red'))+ggtitle('Gold,2014-2024')+xlab('Days')+ylab('Prices')+theme_linedraw()
+ggplotly(seriesplot)
+#White noise and random walk
+#Simulating a WN model with list(order=c(0,0,0))
+White_noise<-arima.sim(model = list(order=c(0,0,0)),n=500)
+#Plotting the WN observations
+WNplot<-autoplot(White_noise,colour = I('blue'))+ggtitle('White Noise')+xlab('Time')+ylab('Values')+theme_linedraw()
+ggplotly(WNplot)
+#generating a RW model using arima.sim
+random_walk<-arima.sim(model = list(order=c(0,1,0)),n=500)
+#Plotting the random walk
+RWplot<-autoplot(random_walk,colour=I('navy'))+xlab('Time')+ylab('Values')+theme_linedraw()
+ggplotly
+library(cowplot)
+#Use arima.sim() to generate White noise data
+whitenoise<-arima.sim(model = list(order=c(0,0,0)),n=500)
+#Use cumsum() to convert White noise data to random walk
+randomwalk<-ts(cumsum(whitenoise))
+#Use arima.sim() to generate white noise drift data
+wn_drift<-arima.sim(model = list(order=c(0,0,0)),n=500,mean=2)
+#Use cumsum() to convert white noise drift data to random walk drift data
+rw_drift<-ts(cumsum(wn_drift))
+#Plot the four data objects
+plt1<-autoplot(whitenoise,colour = I('blue'))+ggtitle('White noise')+xlab('Time')+ylab('Values')+theme_linedraw()
+plt2<-autoplot(randomwalk,colour = I('blue'))+ggtitle('White noise data to Random walk')+xlab('Time')+ylab('Values')+theme_linedraw()
+plt3<-autoplot(wn_drift,colour = I('blue'))+ggtitle('White noise drift data')+xlab('Time')+ylab('Values')+theme_linedraw()
+plt4<-autoplot(rw_drift,colour = I('blue'))+ggtitle('White noise drift data to Random walk')+xlab('Time')+ylab('Values')+theme_linedraw()
+plot_grid(plt1,plt2,plt3,plt4,cols = 1)
+#Converting the daily prices to daily returns,the sequence length is 2501 
+returns<-Goldseries[-1,]/Goldseries[-2501,]-1
+#Convert returns to ts
+returns<-ts(returns,start = c(2014,0),frequency = 750)
+#Plot returns
+returnsplot<-autoplot(returns,colour = I('light green'))+ggtitle('Returns')+xlab('Time')+ylab('Values')+theme_linedraw()
+ggplotly(returnsplot)
+#Converting prices to log returns
+logreturns<-diff(log(Goldseries))
+#Plot logreturns
+logplot<-autoplot(logreturns,colour = I('gray'))+ggtitle('Logreturns ')+xlab('Time')+ylab('Values')+theme_linedraw()
+ggplotly(logplot)
+
+```
+
