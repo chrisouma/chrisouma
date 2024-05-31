@@ -1,0 +1,128 @@
+---
+title: "MHDP"
+author: "Chrisphine"
+date: "2024-04-15"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r}
+library(readxl)
+synthetic_depression_missing_data <- read_excel("C:/Users/Admin/Downloads/synthetic_depression_missing_data.xlsx")
+View(synthetic_depression_missing_data)
+str(synthetic_depression_missing_data)
+attach(synthetic_depression_missing_data)
+hist(age,col = "grey")
+table(sex)
+any(is.na(synthetic_depression_missing_data))
+synthetic_data<-na.omit(synthetic_depression_missing_data)
+complete.cases(synthetic_data)
+colSums(is.na(synthetic_data))
+library(visdat)
+vis_miss(synthetic_data)
+nrow(synthetic_data)
+ncol(synthetic_data)
+# viewing class and structure of specific variables
+attach(synthetic_data)
+class(sex)
+tail(synthetic_data)
+head(synthetic_data,500)
+View(synthetic_data)
+#check for inconsistencies in the specific variables
+table(synthetic_data$employment_t1)
+View(synthetic_data[synthetic_data$employment_t1=="eemployed",])
+View(synthetic_data[synthetic_data=="uneemployed",])
+table(employment_t2)
+#Make correction to typo on employment_t1 variable
+synthetic_data$employment_t1[synthetic_data$employment_t1=="eemployed"]<-"employed"
+table(synthetic_data$employment_t1)
+synthetic_data$employment_t1[synthetic_data$employment_t1=="uneemployed"]<-"unemployed"
+table(synthetic_data$employment_t1)
+employment_t2[synthetic_data$employment_t2=="uneemployed"]<-"unemployed"
+employment_t2[synthetic_data$employment_t2=="eemployed"]<-"employed"
+table(employment_t2)
+table(employment_t3)
+employment_t3[synthetic_data$employment_t3=="eemployed"]<-"employed"
+employment_t3[synthetic_data$employment_t3=="uneemployed"]<-"unemployed"
+table(employment_t3)
+table(synthetic_data$stress_t1)
+#create a categorical variable
+# 18 - 34= 1 young adults 34- 49=2 mid adults at least 50=3 elderly
+synthetic_data$agecut<-NA
+synthetic_data$agecut[synthetic_data$age<35]<-1
+synthetic_data$agecut[synthetic_data$age >=35 &synthetic_data$age<50]<-2
+synthet[synthetic_data$age>=50]<-3
+table(synthetic_data$agecut)
+#labelling the created categorical variables
+synthetic_data$agecut=factor(synthetic_data$agecut,levels = c(1,2,3),labels = c("young","mid adults","elderly"))
+library(table1)
+table1(~factor(synthetic_data$agecut))
+##frequency and percentages
+#stress
+table1(~factor(synthetic_data$stress_t1))
+table1(~factor(synthetic_data$stress_t2))
+table1(~factor(synthetic_data$stress_t3))
+#depression
+table1(~factor(synthetic_data$depression_t1))
+table1(~factor(synthetic_data$depression_t2))
+table1(~factor(synthetic_data$depression_t3))
+#cross tabulate
+table1(~factor(synthetic_data$sex)|synthetic_data$stress_t1,data = synthetic_data)
+table1(~factor(synthetic_data$sex)|synthetic_data$stress_t2,data = synthetic_data)
+table1(~factor(synthetic_data$sex)|synthetic_data$stress_t3,data = synthetic_data)
+table1(~factor(employment_t1)|stress_t1,data = synthetic_data)
+table1(~factor(employment_t2)|stress_t1,data = synthetic_data)
+table1(~factor(synthetic_data$agecut)+factor(sex)+factor(employment_t1)+factor(income_t1))
+table1(~factor(synthetic_data$agecut)+factor(sex)+factor(employment_t2)+factor(income_t1))
+table1(~factor(synthetic_data$agecut)+factor(sex)+factor(employment_t3)+factor(income_t1))
+table1(~factor(synthetic_data$agecut)+factor(sex)+factor(employment_t1)+factor(income_t2))
+table1(~factor(synthetic_data$agecut)+factor(sex)+factor(employment_t1)+factor(income_t3))
+table1(~factor(synthetic_data$agecut)+factor(sex)+factor(employment_t2)+factor(income_t2))
+table1(~factor(synthetic_data$agecut)+factor(sex)+factor(employment_t2)+factor(income_t3))
+table1(~factor(synthetic_data$agecut)+factor(sex)+factor(employment_t3)+factor(income_t2))
+table1(~factor(synthetic_data$agecut)+factor(sex)+factor(employment_t3)+factor(income_t3))
+##Data Visualization
+#Boxplots
+boxplot(income_t1,col = "blue",main="income_t1box-plot",xlab="nothing",ylab="means")
+boxplot(age,col = "green",main="age box-plot",xlab="nothing",ylab="means")
+cor(age,income_t1,method = "pearson")
+cor(age,income_t1,method = "spearman")
+cor(age,income_t1,method = "kendall")
+hist(income_t1,main = "income in year 1",xlab = "annual income",ylab = "number of patients",col ="blue")
+summary(income_t1)
+mean(income_t1)
+#Test for normality
+ks.test(age,income_t1,exact = FALSE)
+##Regression analysis
+model1<-lm(synthetic_data$income_t1~synthetic_data$age)
+summary(model1)
+model2<-lm(income_t1~age+mh_score_t1)
+summary(model2)
+##labeling categorical variables
+#creating sex_num
+synthetic_data$sex_num<-NA
+synthetic_data$sex_num[synthetic_data$sex=="male"]<-1
+synthetic_data$sex_num[synthetic_data$sex=="female"]<-0
+synthetic_data$sex_num=factor(synthetic_data$sex_num,levels = c(1,0),labels = c("Male","Female"))
+table(synthetic_data$sex_num)
+synthetic_data$stress_t1_num<-NA
+synthetic_data$stress_t1_num[synthetic_data$stress_t1_num=="stressed"]<-1
+synthetic_data$stress_t1_num[synthetic_data$stress_t1_num=="not_stressed"]<-0
+synthetic_data$stress_t1_num=factor(synthetic_data$stress_t1_num,levels = c(1,0),labels = "Stressed","Not_stressed")
+table(synthetic_data$stress_t1_num)
+#running logistic regression
+library(caret)
+library(tidyverse)
+library(gtsummary)
+model3<-glm(synthetic_data$agecut~synthetic_data$sex_num,family = binomial(),data = synthetic_data)
+summary(model3)$coef
+mean(synthetic_data$age)
+var(synthetic_data$age)
+mean(synthetic_data$income_t1)
+var(synthetic_data$income_t1)
+##since there's a greater dispersion in mean and variance in both age and income_t1 we can therefore model a poison model
+poisson.model<-glm(synthetic_data$age~synthetic_data$income_t1,family = poisson(),data = synthetic_data)
+summary(poisson.model)
+```
+
