@@ -1,0 +1,64 @@
+---
+title: "Tree based Methods"
+author: "Chrisphine"
+date: "2024-05-29"
+output: html_document
+---
+
+```{r}
+#Performing decision trees algorithm
+library(rpart)
+library(readxl)
+datatrained<-read_excel("C:/Users/Admin/Downloads/Train_data.xlsx")
+View(datatrained)
+attach(datatrained)
+#Create a decision tree model using the rpart package
+model<-rpart(Disease~.,data = datatrained)
+#Plot the decision using the rpart.plot package
+library(rpart.plot)
+rpart.plot(model,main='Decision Tree',box.palette = 'RdYlBlu',nn=TRUE,branch.lty=3,under = TRUE,cex = 0.8,tweak = 1.5,fallen.leaves = TRUE,compress=TRUE,box.col=c('blue','blue','blue'),split.cex=0.8)
+#Generate a noisy sine wave
+x<-seq(0,2*pi,length.out=100)
+y<-sin(x)+rnorm(80,sd=0.3)
+#Fit polynomials models of varying degrees
+fit1<-lm(y~poly(x,1))
+fit2<-lm(y~poly(x,2))
+fit3<-lm(y~poly(x,5))
+fit4<-lm(y~poly(x,10))
+#Plot the data and models
+plot(x,y,main='Fit polynomials models of varying degrees')
+lines(x,predict(fit1),col='green',lwd=2)
+lines(x,predict(fit2),col='navy',lwd=2)
+lines(x,predict(fit3),col='black',lwd=2)
+lines(x,predict(fit4),col='red',lwd=2)
+#Calculate the error for each model
+mse1<-mean((y- predict(fit1))^2)
+mse2<-mean((y- predict(fit2))^2)
+mse3<-mean((y- predict(fit3))^2)
+mse4<-mean((y- predict(fit4))^2)
+#Print the training errors
+cat('MSE for Linear model:',mse1,'\n')
+cat('MSE for the quadratic model:',mse2,'\n')
+cat('MSE for fifth degree polynomial:',mse3,'\n')
+cat('MSE for the tenth degree polynomial:',mse4,'\n')
+#Random Forest
+library(randomForest)
+datatrained$Disease<-as.factor(datatrained$Disease)
+rf<-randomForest(Disease~`Systolic Blood Pressure`+`Diastolic Blood Pressure`,data = datatrained,proximity=TRUE)
+print(rf)
+#Since OOB is low we can try do cross validation
+library(caret)
+#Define cross-validation
+train_control<-trainControl(method = 'cv',number = 5)
+#define the grid of hyerparameters to tune
+tune_grid<-expand.grid(mtry=c(1,2,3))
+#Train the model with cross validation
+modelo<-train(Disease~`Systolic Blood Pressure`+`Diastolic Blood Pressure`,data = datatrained,method='rf',trControl=train_control,tuneGrid=tune_grid)
+print(modelo)
+rf_df<-expand.grid(`Diastolic Blood Pressure`=seq(0,6,length.out=200),`Systolic Blood Pressure`=seq(0,10,length.out=200))
+rf_df$Disease<-predict(rf,rf_df)
+rfplot<-ggplot(datatrained,aes(`Diastolic Blood Pressure`,`Systolic Blood Pressure`,fil=Disease))+geom_raster(data = rf_df,alpha=0.5)+geom_point(shape=21,size=3)+theme_minimal()
+rfplot
+
+```
+
