@@ -1,0 +1,36 @@
+---
+title: "Naive Bayes"
+author: "Chrisphine"
+date: "2024-03-08"
+output: html_document
+---
+
+```{r}
+#Loading dataset
+data("iris")
+#Structure of the data
+str(iris)
+#Performing Naive Bayes
+library(e1071)
+library(caret)
+library(caTools)
+#Splitting data into train and test set
+split<-sample.split(iris,SplitRatio = 0.9)
+train_cl<-subset(iris,split=="TRUE")
+test_cl<-subset(iris,split=="FALSE")
+#Feature scaling
+train_scale<-scale(train_cl[,1:4])
+test_scale<-scale(test_cl[,1:4])
+#Fitting Naive Bayes
+set.seed(120)
+classifier_cl<-naiveBayes(Species~.,data = train_cl)
+classifier_cl
+#Predicting on test data
+y_pred<-predict(classifier_cl,newdata=test_cl)
+#Confusion Matrix
+cm<-table(test_cl$Species,y_pred)
+cm
+#Model Evaluation
+confusionMatrix(cm)
+```
+
