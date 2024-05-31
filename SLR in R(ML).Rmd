@@ -1,0 +1,26 @@
+---
+title: "Machine Learning SLR in R"
+author: "Chrisphine"
+date: "2024-03-08"
+output: html_document
+---
+
+```{r}
+ library(readxl)
+ Wage_differentials <- read_excel("D:/CHRIS/Wage differentials.xlsx") 
+ View(Wage_differentials)
+attach(Wage_differentials)
+ #spliting dataset into train and test data 
+ library(caTools)
+ split<-sample.split(Wage_differentials,SplitRatio = 0.7)
+ trainingset<-split(Wage_differentials,split==TRUE)
+ testset<-split(Wage_differentials,split==FALSE)
+ #Fitting SLR to the the trainingset
+ lm.r<-lm(formula = `Compensation(Y$/hr)`~`Length of employment(X months)`,data = trainingset)
+ coef(lm.r)
+ #Predicting the test set results
+ ypred<-predict(lm.r,newdata = testset)
+ ypred
+ summary(ypred)
+```
+
