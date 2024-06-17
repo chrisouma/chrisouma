@@ -1,0 +1,205 @@
+---
+title: "From Trees to Random Forests"
+author: "Chrisphine"
+date: "2024-06-07"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+#Using the Arsenic in Bangladesh wells to fit a logistic regresion
+library(ISLR)
+library(maddison)
+library(pwt9)
+library(tidyverse)
+library(WDI)
+library(AER)
+Wellsdata<-Wells
+view(Wellsdata)
+#Fitting a logistic regression
+logisticmodel<-glm(Wellsdata$switch~Wellsdata$distance+Wellsdata$arsenic,family = binomial(link = logit),data = Wellsdata)
+library(texreg)
+texreg(list(logisticmodel),caption = "Logistic regression of switch
+on distance and arsenic",caption.above=TRUE)
+#Fitting a classification tree
+library(rpart)
+set.seed(1234)
+ind<-sample(2,nrow(Wellsdata),replace = T,prob = c(0.8,0.2))
+#Set one be train set
+welltraindata<-Wellsdata[ind==1,]
+#set 2 be test set
+welltestdata<-Wellsdata[ind==2,]
+Ladeshplot<-rpart(switch~distance+arsenic,data = welltraindata,method = 'class')
+library(rpart.plot)
+rpart.plot(Ladeshplot,type = 1,extra = 1)
+library(hexbin)
+library(WVPlots)
+HexBinPlot(Wellsdata,"arsenic","distance","Distance as a fucntion of arsenic")+geom_smooth(color="black",se=FALSE)
+BinaryYScatterPlot(Wellsdata,"distance","switch",title = "Probability of switching by distance")
+library(WDI)
+#new_wdi_cache<-WDIcache()
+WDIsearch("gdp.*Capita.*PPP")
+WDIsearch("co2.*capita")
+#Choosing our indicator
+wdidata<-WDI(indicator = c("NY.GDP.PCAP.PP.KD","EN.ATM.CO2E.PC"),start = 2010,end = 2010,extra = TRUE)
+#ClevelandDotplot for the WDI data
+WDI_data<-na.omit(wdidata)
+ClevelandDotPlot(WDI_data,"region",sort = 1,title = "GDP by region")+coord_flip()
+wdi_data<-WDI(indicator = c("NY.GDP.PCAP.PP.KD"),start = 1990,end = 2017,extra = TRUE)
+any(is.na(wdi_data))
+sum(is.na(wdi_data))
+wdi_data<-na.omit(wdi_data)
+library(tidyverse)
+wdi_data<-wdi_data%>%
+  filter(region!="Aggregates")
+#renaming a variable
+wdi_data<-wdi_data%>%
+  rename(GDP_pc=NY.GDP.PCAP.PP.KD)
+tibble(wdi_data)
+wdi_sel<-wdi_data%>%
+  filter(year==1994|
+           year==2004|
+           year==2014)
+ggplot(wdi_sel,aes(y=GDP_pc,x=factor(year)))+geom_boxplot()+coord_flip()
+#filter the data for the years 1990 and 2017.
+wdi_1990<-wdi_data%>%
+  filter(year==1990)%>%
+  select(country,region,GDP_pc,iso3c)%>%
+  rename(GDP_pc_1990=GDP_pc)
+wdi_2017<-wdi_data%>%
+  filter(year==2017)%>%
+  select(country,region,GDP_pc)%>%
+  rename(GDP_pc_2017=GDP_pc)
+library(ggplot2)
+view(wdi_1990)
+ggplot(wdi_1990,aes(x=region,fill = GDP_pc_1990))+geom_bar(position = "dodge")+scale_fill_brewer()+coord_flip()
+#Spam email classification
+#Importing dataset
+library(readr)
+Email_dataset <- read_csv("C:/Users/Admin/Downloads/Email dataset.csv")
+View(Email_dataset)
+#Having a glimpse of the dataset
+library(tidyverse)
+glimpse(Email_dataset)
+#Setting seed for reproducibility
+set.seed(1234)
+Ind<-sample(2,nrow(Email_dataset),replace = T,prob = c(0.75,0.25))
+#Let set 1 become the training set and set 2 be test set
+train<-Email_dataset[Ind==1,]
+test<-Email_dataset[Ind==2,]
+#Tree classifcation
+library(rpart)
+treplot<-rpart(Prediction~.,data = train,method = 'class')
+library(rpart.plot)
+library(caret)
+rpart.plot(treplot,type = 1,extra = 1)
+printcp(treplot)
+plotcp(treplot)
+#Performing modeltree classification and then model evaluation the testset 
+treplot1<-rpart(Prediction~.,data = test,method = 'class')
+rpart.plot(treplot1,type = 1,extra = 1)
+printcp(treplot1)
+plotcp(treplot1)
+testpred<-predict(treplot1,test,type = 'class')
+testpred<-as.factor(testpred)
+test$Prediction<-as.factor(test$Prediction)
+confusionMatrix(testpred,test$Prediction,positive = '1')
+#Constructing a tree with CP value of 0.085
+tree<-rpart(Prediction~.,data = train,cp=0.085)
+rpart.plot(tree,type = 1,extra = 1,box.palette = 'Greens')
+p<-predict(treplot,train,type = 'class')
+length(p)
+p<-as.factor(p)
+train$Prediction<-as.factor(train$Prediction)
+length(train$Prediction)
+confusionMatrix(p,train$Prediction,positive='1')
+CO2
+Co2<-CO2
+Co2$class<-as.numeric(Co2$Treatment=='chilled')
+set.seed(1234)
+library(mosaic)
+library(dplyr)
+intrain<-sample(1:nrow(Co2),size = 0.75*nrow(Co2))
+trainset<-Co2[intrain,]
+testset<-Co2[-intrain,]
+head(trainset)
+library(rpart)
+library(rpart.plot)
+str(trainset)
+treeCo2<-rpart(Treatment~.,data = trainset,method = 'class')
+rpart.plot(treeCo2,type = 1,extra = 1)
+modelpredictions<-predict(treeCo2,trainset,type = 'class')
+print(modelpredictions)
+print(treeCo2)
+library(caret)
+#Confusion matrix
+confusionMatrix(modelpredictions,trainset$Treatment,positive="chilled")
+#Predicting on test data we've have a perfect classification which could mean overfitting
+testpredictions<-predict(treeCo2,testset,type = 'class')
+#Evaluating performance on test data
+confusionMatrix(testpredictions,testset$Treatment,positive = 'chilled')
+#Performing cross validation
+##Setting seed for reproducibility
+set.seed(1234)
+train_control<-trainControl(method = 'cv',number = 15)
+modeltrain<-train(Treatment~.,data = Co2,method='rpart',trControl=train_control)
+print(modeltrain)
+#ROC CURVE
+p1<-predict(treeCo2,testset,type = 'prob')
+p1<-p1[,2]
+library(pROC)
+#Logistic model
+logit_1<-glm(formula =Treatment~.,data = trainset,family = 'binomial')
+summary(logit_1)
+#cross-validation
+logit_control<-trainControl(method = 'cv',number = 10)
+model_cv<-train(Treatment~.,data=trainset,method='glm',family='binomial',trControl=logit_control)
+print(model_cv)
+logit_2<-predict(logit_1,newdata = testset,type = 'response')
+#Probability check
+logit_2<-ifelse(logit_2>0.5,1,0)
+print(logit_2)
+Infertility<-infert
+View(Infertility)
+intraindata<-sample(1:nrow(Infertility),size = 0.8*nrow(Infertility))
+traindata<-Infertility[intraindata,]
+testdata<-Infertility[-intraindata,]
+head(traindata)
+library(rpart)
+library(rpart.plot)
+inferttree<-rpart(spontaneous~.,data = traindata,method = 'class')
+inferttree1<-rpart(spontaneous~.,data = testdata,method = 'class')
+rpart.plot(inferttree,type = 1,extra = 1)
+printcp(inferttree)
+plotcp(inferttree)
+library(caret)
+infertpred<-predict(inferttree,traindata,type = 'class')
+print(infertpred)
+#Calculating the confusionmatrix
+infertpred<-as.factor(infertpred)
+traindata$spontaneous<-as.factor(traindata$spontaneous)
+confusionMatrix(infertpred,traindata$spontaneous,positive = '1')
+#Performing cross-validation
+##Setting seed for reproducibility
+set.seed(456)
+library(rpart)
+trainmodel_control<-trainControl(method = 'cv',number = 10)
+modelcontrolpred<-train(spontaneous~.,data = Infertility,method='rpart',trControl=trainmodel_control)
+print(modelcontrolpred)
+#Train the CART with the optimal cp Value
+optimal_cp<-0.0790179
+cart_model<-rpart(spontaneous~.,data = traindata,method = 'class',cp=optimal_cp)
+#Plotting the CART model
+rpart.plot(cart_model,type = 4,extra = 102,under = TRUE,fallen.leaves = TRUE,main='CART Model Visualization',box.palette = "GnYlRd")
+#Predicting on the testset 
+inferttree1<-rpart(spontaneous~.,data = testdata,method = 'class')
+inferttestpred<-predict(inferttree1,testdata,type = 'class')
+#Confusion matrix
+inferttestpred<-as.factor(inferttestpred)
+testdata$spontaneous<-as.factor(testdata$spontaneous)
+confusionMatrix(inferttestpred,testdata$spontaneous)
+
+```
+
