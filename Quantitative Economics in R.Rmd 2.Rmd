@@ -1,0 +1,207 @@
+---
+title: "Growth Data and Models"
+author: "Chrisphine"
+date: "2024-06-05"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r}
+#installing the Maddison Package
+library(maddison)
+library(tidyverse)
+str(maddison)
+library(latexpdf)
+#converting the dataset into a csv file
+write.csv(maddison,"gdp_data.csv")
+#Importing the dataset
+library(readr)
+gdp_data <- read_csv("gdp_data.csv")
+View(gdp_data)
+##Data wrangling
+#Looking on the US dataset
+US_data<-gdp_data%>%
+  filter(iso2c=="US")
+ggplot(US_data,aes(x=year,y=cgdppc))+
+  geom_line()
+view(US_data)
+Us_data1<-maddison%>%
+  filter(iso2c=="US"& year>=
+           as.Date("1800-01-01"))
+#Plotting data for selected countries to provide a rich historical comparison
+Gdp1<-maddison%>%
+  filter(country %in% c("Uganda","Egypt","Kenya","Rwanda")&
+           year>=
+           as.Date("1800-01-01"))
+ggplot(Gdp1,aes(x=year,y = cgdppc,colour = country))+
+  geom_line()+
+  scale_y_log10()
+#Production Model and Crosscountry Data (Using the Cobb-Douglas Function)
+library(pwt9)
+data("pwt9.1")
+pwtdata<-force(pwt9.1)
+rm(pwt9.1)
+pwtdata<-tibble(pwtdata)
+# year of focus being 2014
+pwtdata1<-pwtdata%>%
+  filter(year==2014)
+#Selecting key variables
+pwtdata2<-pwtdata%>%
+  select("cgdpo","emp","pop","ck","country","isocode")
+#Creating variables output per and capital per worker
+pwtdata3<-pwtdata2%>%
+  mutate(Output_oer_worker=cgdpo/pop,cap_per_worker=ck/pop)
+#Pulling out values for US
+pwtdata4<-pwtdata3%>%
+  filter(isocode=="USA")
+USout<-pwtdata4$Output_oer_worker
+UScap<-pwtdata4$cap_per_worker
+#Since the Alpha levels for US=1/3 we'll be using that value
+pwtdata5<-pwtdata3%>%
+  mutate(Out=Output_oer_worker/USout,cap=cap_per_worker/UScap,pred=cap^(1/3))
+#Data for selected countries
+pwtdata6<-pwtdata5%>%
+  filter(country%in% c("United States of America","Japan","Italy","Spain","India","Brazil"))
+pwtdata6%>%
+  select("country","Out","pred","cap")
+#Plotting the predicted vs the real output
+ggplot(pwtdata5,aes(x=Out,y=pred))+geom_point(col="grey50")+geom_line(aes(x=Out,y=Out))+scale_y_log10()+scale_x_log10()
+###We observe that there is a large gap between the predicted output and the real output, and it is larger for poorer countries. Poorer countries are poorer not only because there is a gap between them and the US because of capital per person, but also the capital per person is less productive.
+
+#Solow Model simulation
+#In the Solow model, we have production given by Y = AKa L1−a and capital accumulation given by Kt+1 = Kt + sYt − dKt
+a<-1/3
+A<-4
+L<-400
+Klow<-0
+Khigh<- 8000
+Knumber<-200
+K<-seq(from=Klow,to=Khigh,length.out=Knumber)
+Y<-A*(K^a)*(L^(1-a))
+Prod<-data.frame(K,Y)
+#plotting K vs Y
+ggplot(Prod,aes(x=K,y=Y))+geom_line()
+#Having plotted the production function,plot the Solow diagram, which shows how savings and depreciation vary with capital
+s<-0.75
+S<-s*Y
+d<-0.2
+dep<-d*K
+Y<-A*(K^a)*(L^(1-a))
+Solow<-data.frame(S,dep,K)
+ggplot(Solow)+geom_line(aes(x=K,y=S))+geom_line(aes(x=K,y=dep))
+#From the diagram,it can be deduced that if s increases, the Solow diagram and the steady-state values changes
+s1<-0.85
+S1<-s1*Y
+Solow1<-data.frame(S,S1,dep,K)
+ggplot(Solow1)+geom_line(aes(x=K,y=S))+
+  geom_line(aes(x=K,y=dep))+
+  geom_line(aes(x=K,y=S1),linetype="dashed")
+#Plotting how the Y values changes overtime
+d<-0.3
+L<-400
+a<-1/3
+A<-4
+s<-0.85
+d<-0.3
+Kt<-numeric(200)
+Kt[1]<-1000
+for (i in 2:200){
+  Kt[i]<-Kt[i-1]+
+    s*(A*(Kt[i-1]^a)*(L^(1-a)))-d*Kt[i-1]}
+Yt<-A*(Kt^a)*(L^(1-a))
+motion<-data.frame(Yt,Kt)
+ggplot(motion,aes(1:200,y=Yt))+geom_line()
+
+##Romer Model simulation
+#The Solow model leads to growth that peters out when it depends on capital accumulation, because of diminishing returns.Romer leads us to ideas as a source of economic growth. Ideas are different from objects. Ideas are characterized by non-rivalry.
+#use W for ideas and ideas are produced and are not subject to diminishing returns.
+###The production function for objects is:
+#Yt = Wt(1 − l)L, t denoting time and 1 − l denoting the share of the total workers
+#L who work to produce objects.
+#The production function for ideas is:
+#Wt = Wt−1 + zt Wt−1l L, where z denotes a productivity parameter and l is the share of workers who produce ideas. We get continuous growth in the Romer model
+W<-numeric(1000)
+Y<-numeric(1000)
+W[1]<-1000
+l<-0.20
+L<-1000
+z<-1/500
+Y[1]<-W[1]*(1-l)*L
+for(i in 2:1000){
+  W[i]<-W[i-1]+z*W[i-1]*l*L
+  Y[i]<-W[i]*(1-L)*L}
+Romer<-data.frame(W,Y,Time=1:1000)
+ggplot(Romer,aes(x=Time,y=Y))+geom_line()
+#Examining growth in Recent Decades using the World Development Indicators data
+library(WDI)
+#new_wdi_cache<-WDIcache()
+WDIsearch("gdp.*Capita.*PPP")
+wdi_data<-WDI(indicator = c("NY.GDP.PCAP.PP.KD"),start = 1990,end = 2017,extra = TRUE)
+any(is.na(wdi_data))
+sum(is.na(wdi_data))
+wdi_data<-na.omit(wdi_data)
+library(tidyverse)
+wdi_data<-wdi_data%>%
+  filter(region!="Aggregates")
+#renaming a variable
+wdi_data<-wdi_data%>%
+  rename(GDP_pc=NY.GDP.PCAP.PP.KD)
+tibble(wdi_data)
+wdi_sel<-wdi_data%>%
+  filter(year==1994|
+           year==2004|
+           year==2014)
+ggplot(wdi_sel,aes(y=GDP_pc,x=factor(year)))+geom_boxplot()+coord_flip()
+#filter the data for the years 1990 and 2017.
+wdi_1990<-wdi_data%>%
+  filter(year==1990)%>%
+  select(country,region,GDP_pc,iso3c)%>%
+  rename(GDP_pc_1990=GDP_pc)
+wdi_2017<-wdi_data%>%
+  filter(year==2017)%>%
+  select(country,region,GDP_pc)%>%
+  rename(GDP_pc_2017=GDP_pc)
+#a scatter plot of Ratio of GDP per capita in 2017 to GDP per capita in 1990 versus GDP per capita in 1990
+library(ggrepel)
+#Using left_join()
+wdi_1990_2017<-wdi_1990%>%
+  left_join(wdi_2017,by="country")
+wdi_1990_2017<-wdi_1990_2017%>%
+  mutate(ratio=GDP_pc_2017/GDP_pc_1990)
+ggplot(wdi_1990_2017,aes(x=GDP_pc_1990,y=ratio,label=iso3c,colour = region.x))+geom_text(size = 3)+scale_x_log10()+scale_y_log10()
+theme(legend.position = "up")
+#pull out countries with Ratio of GDP per capita in 2017 to GDP per capita in 1990 greater than three
+library(knitr)
+wdi_1990_2017%>%
+  filter(ratio>3)%>%
+  select(ratio,country)%>%
+  arrange(desc(ratio))%>%
+kable(caption = "Ratio of GDP per capita in 2017 to GDP per capita in 1990,countries with ratio greater than 3",digits = 3)
+#pull out countries with Ratio of GDP per capita in 2017 to GDP per capita in 1990 less than 0.95.
+wdi_1990_2017%>%
+  filter(ratio<0.95)%>%
+  select(ratio,country)%>%
+  arrange(desc(ratio))%>%
+kable(caption = "Ratio of GDP per capita in 2017 to GDP per capita in 1990,countries with ratio lesser than 0.95",digits = 3)
+#use group_by and summarize to find the medians of GDP per capita region-wise
+wdi_median<-wdi_data%>%
+  group_by(year,region)%>%
+  summarize(reg_med=median(GDP_pc,na.rm=TRUE))
+# plot the median GDP per capita by region in recent decades
+ggplot(wdi_median,aes(x=year,y=reg_med))+geom_line()+scale_y_log10()+facet_wrap(~region,ncol = 2)
+library(AER)
+#Time series of NYSE data
+library(readr)
+NYSE<- read_csv("C:/Users/Admin/Downloads/^NYA.csv")
+View(NYSE)
+#To graph volatility, we estimate the standard deviation at monthly intervals, and use the xts package 
+library(xts)
+nyseplot<-as.xts(NYSE)
+nyse_sd_daily<-apply.daily(nyseplot,sd)
+autoplot(nyse_sd_daily)+geom_hline(yintercept = 2,linetype="dashed")
+any(is.na(NYSE))
+
+```
+

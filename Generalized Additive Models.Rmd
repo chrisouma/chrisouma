@@ -1,0 +1,30 @@
+---
+title: "Generalized Additive Models"
+author: "Chrisphine"
+date: "2024-06-07"
+output: html_document
+---
+
+```{r}
+#GAMs are generalized additive models. A GAM allows us to extend the  multiplelinear regression model. If we have a regression model:
+#yi = β0 + β1xi1 + β2xi2 + ei ,
+#we can write the GAM as:
+#yi = β0 + f1(xi1) + f2(xi2) + ei .
+#We replace each linear component βjxij with a smooth non-linear function fj(xij)
+#Using the Wages dataset has data on wages and other variables from the Atlantic region of the United States
+library(ISLR)
+data("Wage",package = "ISLR")
+str(Wage)
+#Visualize the data
+library(ggplot2)
+ggplot(Wage,aes(x=age,y=wage))+geom_point(alpha=0.5,col="grey70")+geom_smooth()
+ggplot(Wage,aes(y=wage,x=factor(education)))+geom_boxplot()+coord_flip()
+ggplot(Wage,aes(y=wage,x=factor(year)))+geom_boxplot()+coord_flip()
+#Fitting a generalized additive model with gam(),using the gam package
+library(gam)
+Wage$fac_year<-factor(Wage$year)
+Wage$fac_education<-factor(Wage$education)
+gamMod<-gam(wage~lo(age)+fac_year+fac_education,data = Wage)
+plot(gamMod,se=TRUE,pch=".")
+write.csv(Wage,"US Wage data.csv")
+
