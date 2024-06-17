@@ -1,0 +1,86 @@
+---
+title: "QUASI SEPARATION"
+author: "Chrisphine"
+date: "2024-06-15"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r}
+#Importing dataset
+library(readr)
+car_data <- read_csv("C:/Users/Admin/Downloads/car.data.csv")
+View(car_data)
+#Pulling the variable of concen
+vard<-setdiff(colnames(car_data),'rating')
+#Predicting whether the cars gets an unacceptable rating
+car_data$fail<-car_data$rating=='unacc'
+outcome<-'fail'
+#setting seed for reproducibility
+set.seed(1234)
+#Creating a grouping variable for the test/test sets
+grouping<-runif(nrow(car_data))
+library(zeallot)
+car_traindata<-car_data[grouping<0.7,]
+car_testdata<-car_data[grouping>=0.7,]
+print(dim(car_traindata))
+print(dim(car_testdata))
+#Fitting a logistic regression
+library(wrapr)
+simplelogistic<-mk_formula(outcome,vard)
+logitmodel<-glm(simplelogistic,data = car_traindata,family = 'binomial')
+summary(logitmodel)
+#Looking at the logistic model's coefficients
+coefs<-coef(logitmodel)
+coef_frame<-data.frame(coef=names(coefs),value=coefs)
+library(ggplot2)
+ggplot(coef_frame,aes(x=coef,y=value))+geom_pointrange(aes(ymin = 0,ymax = value))+ggtitle("Coefficients of Logistic model")+coord_flip()
+#model performance test. Model's prediction on the test set
+car_testdata$pred_glm<-predict(logitmodel,newdata = car_testdata,type ="response")
+library(sigr)
+#using convience function to print confusion matrix, accuracy and deviance
+confmat<-function(dframe,predvar){
+   cmat<-table(truth=ifelse(dframe$fail,"unacc","passed"),prediction=ifelse(dframe[[predvar]]>0.5,"unacc","passed"))
+   accuracy<-sum(diag(cmat))/sum(cmat)
+   deviance=calcDeviance(dframe[[predvar]],dframe$fail)
+   list(confusionmatrix=cmat,accuracy=accuracy,deviance=deviance)}
+confmat(car_testdata,"pred_glm")
+#Fitting a ridge regression model
+library(glmnet)
+library(glmnetUtils)
+ridgemodel<-cv.glmnet(simplelogistic,car_traindata,alpha = 0,family='binomial')
+ridgemodel
+plot(ridgemodel)
+#model coefficients
+(ridgecoefs<-coef(ridgemodel))
+ridgecoefs_frame<-data.frame(coefr=rownames(ridgecoefs)[-1],value=ridgecoefs[-1,1])
+library(ggplot2)
+ggplot(ridgecoefs_frame,aes(x=coefr,y=value))+geom_pointrange(aes(ymin = 0,ymax = value))+ggtitle("coefficients of the ridge regression model")+coord_flip()
+#checking on the model performance
+ridgeprediction<-predict(ridgemodel,newdata = car_testdata,type='response')
+car_testdata$ridge_pred<-as.numeric(ridgeprediction)
+confmat(car_testdata,"ridge_pred")
+#Lasso regression
+(lassomodel<-cv.glmnet(simplelogistic,car_traindata,alpha = 1,family='binomial'))
+plot(lassomodel)
+#Model coefficients
+(lassocoefs<-coef(lassomodel))
+lassocoefs_frame<-data.frame(coefl=rownames(lassocoefs)[-1],value=lassocoefs[-1,1])
+ggplot(lassocoefs_frame,aes(x=coefl,y=value))+geom_pointrange(aes(ymin = 0,ymax = value))+ggtitle("coefficidents of the lasso regression model")+coord_flip()
+#Checking model performance
+lassoprediction<-predict(lassomodel,newdata = car_testdata,type='response')
+car_testdata$lasso_pred<-as.numeric(lassoprediction)
+confmat(car_testdata,"lasso_pred")
+#Cross-validation for both alpha and lambda using the elastic net regression
+(elastic_net<-cva.glmnet(simplelogistic,car_traindata,family='binomial'))
+#Finding the minimum error alpha
+get_cvm<-function(lambda){
+  indexx<-match(model$lambda.1se,model$lambda)
+  model$cvm[indexx]}
+#getting the alpha that the algorithm tried
+enet_performance<-data.frame(alpha=elastic_net$alpha)
+#getting the models objects produced
+elasticmodel<-elastic_net$modlist
+```
+
