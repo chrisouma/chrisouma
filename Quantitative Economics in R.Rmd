@@ -1,0 +1,304 @@
+---
+title: "Quantitative Economics in R"
+author: "Chrisphine"
+date: "2024-05-31"
+output: html_document
+---
+
+```{r}
+#Creating a vector of prices
+Price<-c(200,350,400,150)
+#Creating a correspondent quantity
+Quantity<-c(20,15,10,25)
+#Creating an revenue vector by multiplying price and quantity
+Revenue<-Price*Quantity
+Revenue
+Total_revenue<-sum(Revenue)
+Total_revenue
+#Creating a matrix of price, quantity, and revenue
+Matrix_PQR<-matrix(data = cbind(Price,Quantity,Revenue),ncol = 3)
+Matrix_PQR
+#Creating a list from the above
+Revenue_list<-list(Price,Quantity,Revenue,Total_revenue)
+Revenue_list
+#Calculating the NPV
+Amount<-400000
+discount_rate<-0.75
+T1<-4
+NPV<-Amount/(1+discount_rate)^T1
+NPV
+#hypothetical data of a survey of six persons, and the variables are: payment they received, hours worked, their gender and age
+surv_id<-c(101,201,301,401,501,601)
+payment<-c(15000,20000,12000,40000,6000,18000)
+hrs_worked<-c(7,5,3,6,7,4)
+gender<-c("M","F","M","M","F","F")
+age<-c(30,34,25,45,55,60)
+#Using tibble to create a dataframe
+library(tidyverse)
+labour<-tibble(surv_id,payment,hrs_worked,gender,age)
+labour
+#Getting a glimpse of the data
+glimpse(labour)
+#writing the data into a csv file using the write_csv function
+write_csv(labour,"labour.csv")
+labour1<-read.csv("labour.csv")
+view(labour1)
+#Using the filter function
+labour_filter<-labour %>%
+  filter(gender=="F")
+labour_filter
+#Creatin new variable in the using mutate function
+labour_mutate<-labour%>%
+  mutate(wage=payment*hrs_worked)
+labour_mutate
+#Sorting the data in asceding order of hrs_worked using the arrange function
+labour_arrange<-labour_mutate%>%
+  arrange(hrs_worked)
+labour_arrange
+#We now summarize the data; grouping by gender. The group by here groups by gender; we get the mean hours worked by females and males
+labour_summary<-labour%>%
+  group_by(gender)%>%
+  summarize(mean=mean(hrs_worked))
+labour_summary
+#Graphs
+library(plotly)
+gg1<-ggplot(data = labour_mutate,aes(x=age,y=wage))+geom_point(aes(colour = gender))+facet_wrap(~gender)
+gg1
+#Data wrangling and graphing
+data("anscombe")
+ansdata<-anscombe
+#viewing the structure of the data
+str(ansdata)
+#Converting the data into tibble(tidyverse version of data frame)
+ansdata<-as_tibble(anscombe)
+glimpse(ansdata)
+#use the summarize function to find the means
+ansdata%>%
+  summarize(mean.x1=mean(x1),
+            mean.x2=mean(x2),
+            mean.x3=mean(x3),
+            mean.x4=mean(x4),
+            mean.y1=mean(y1),
+            mean.y2=mean(y2),
+            mean.y3=mean(y3),
+            mean.y4=mean(y4))
+#use the summarize function to check the sds
+ansdata%>%
+  summarize(sd.x1=sd(x1),
+            sd.x2=sd(x2),
+            sd.x3=sd(x3),
+            sd.x4=sd(x4),
+            sd.y1=sd(y1),
+            sd.y2=sd(y2),
+            sd.y3=sd(y3),
+            sd.y4=sd(y4))
+#regressing the model
+attach(ansdata)
+modc<-lm(y1~x1+x2+x3+x4)
+modd<-lm(y2~x1+x2+x3+x4)
+library(texreg)
+texreg(list(modc,modd),custom.model.names = c("modc","modd"),caption = "regression of both Y1 and Y2 on x1,x2,x3,x4",caption.above = TRUE)
+library(WDI)
+#new_wdi_cache<-WDIcache()
+WDIsearch("gdp.*Capita.*PPP")
+WDIsearch("co2.*capita")
+#Choosing our indicator
+wdidata<-WDI(indicator = c("NY.GDP.PCAP.PP.KD","EN.ATM.CO2E.PC"),start = 2010,end = 2010,extra = TRUE)
+#removing aggregates to only have data relating to countries
+library(tidyverse)
+wdidata<-wdidata%>%
+  filter(region!="Aggregates")
+#renaming our variables
+wdidata<-wdidata%>%
+  rename(GDPpercap=NY.GDP.PCAP.PP.KD,Emit_co2percap=EN.ATM.CO2E.PC)
+#writing our data into a csv file
+write.csv(wdidata,"wdi_Co2_GDP.csv")
+#loading the csv file 
+library(readr)
+wdi <- read_csv("wdi_Co2_GDP.csv")
+View(wdi)
+str(wdi)
+#checking for missing values
+any(is.na(wdi))
+sum(is.na(wdi))
+#boxplot of the dataset
+ggplot(wdi,aes(y=GDPpercap,x=region))+geom_boxplot()+coord_flip()+scale_y_log10()
+#scatter plot of the dataset
+ggplot1<-ggplot(wdi,aes(x=GDPpercap,y=Emit_co2percap))+geom_point()
+ggplot1
+#Since data are clustered in the bottom left corner and very spread out away
+#To get a more even distribution of the data, we use axes with log scales. We also add a smooth:
+ggplot2<-ggplot1+geom_smooth(se=FALSE)+scale_x_log10()+scale_y_log10()
+ggplot2
+#mapping the dataset
+library(maps)
+datamap<-map_data("world")
+dim(datamap)
+class(datamap)
+head(datamap)
+#making a blank world map using thegeom_polygon
+ggplot(datamap,aes(x=long,y=lat,group = group))+geom_polygon(fil="white",color="black")
+library(countrycode)
+#translating the way country names are recorded in both sets of data using the countrycode package
+datamap$code<-countrycode(datamap$region,origin = "country.name",destination = "wb")
+wdi$code<-countrycode(wdi$country,origin = "country.name",destination = "wb")
+#merging the two sets of data
+mergeddata<-full_join(datamap,wdi,by="code")
+#making the global GDP per capiata map
+ggplot(mergeddata,aes(x=long,y=lat,group = group,fill = log10(GDPpercap)))+geom_polygon()
+#using colour gradient
+ggplot(mergeddata,aes(x=long,y=lat,group = group,fill = log10(GDPpercap)))+geom_polygon()+scale_fill_gradient(low = "navy",high = "red")
+#making the same map for CO2
+ggplot(mergeddata,aes(x=long,y=lat,group = group,fill = log10(Emit_co2percap)))+geom_polygon()+scale_fill_gradient(low = "navy",high = "red")
+#Plotting a demand and supply function
+#• An initial inverse demand curve: pD = (250 − 12q)/16
+#• A shifted inverse demand curve: pD = (300 − 12q)/16
+#• A supply curve: pS = (24 + 4q)/10
+curve((250-12*x)/16,0,30,
+      ylim=c(0,20))
+curve((300-12*x)/16,0,30,
+      lty=2,add = TRUE)
+curve((24+(2*x))/10,
+      add = TRUE)
+library(mosaic)
+plotFun(A*(L^0.9)*(K^0.1)~L&K,
+        A=5,filled = FALSE,
+        xlim = range(0,25),
+        ylim = range(0,100))
+library(micEcon)
+data("appleProdFr86",package = "micEcon")
+dataecon<-appleProdFr86
+rm(appleProdFr86)
+#estimate a Cobb–Douglas production function and tabulate with the texreg package
+ProdCd<-lm(I(log(qOut))~log(vCap)+log(vLab)+log(vMat),data = dataecon)
+library(texreg)
+texreg(list(ProdCd),caption = "DV is log(qOut)",caption.above = TRUE)
+#use a simple difference equation to illustrate how global carbon stocks may change over time
+# use S to denote the stock of carbon, E to denote emissions and t denote time.
+#Then St = St−1 + Et − dSt−1
+#where dSt−1 is how much of the stock is absorbed.
+#The atmospheric stock of carbon is about 750 Gt. From data, the parameter d can be approximated by 0.005. If current emissions continue at the same level for the next 1000 years
+S<-numeric(1000)
+E<-numeric(1000)
+S[1]<-750
+E[1]<-6.3
+for(i in 2:1000){
+  E[i]<-E[i-1]
+  S[i]<-S[i-1]+E[i-1]-(0.005*S[i-1])}
+time<-1:1000
+C_scenario<-tibble(S,time,E)
+ggplot(C_scenario,aes(x=time,y=S))+geom_line()
+CO2<-function(growth=2.014)
+  S<-numeric(1000)
+  E<-numeric(1000)
+  S[1]<-750
+  E[1]<-6.3
+  for(i in 2:100){
+    E[i]<-E[i-1]
+    S[i]<-S[i-1]+E[i-1]-(0.005*S[i-1])}
+for(i in 101:1000){
+   E[i]<-E[i-1]
+   S[i]<-S[i-1]+E[i-1]-(0.005*S[i-1])}
+time<-1:1000
+C_scenario<-tibble(S,time,E)
+ggplot(C_scenario,aes(x=time,y=S))+geom_line()
+#Sampling distribution
+#consider a box that corresponds to six-sided dice; a box that has the tickets 1 to 6 in it, 15000 each. Because the population is very large relative to the size of the samples that we will draw, each draw of a ticket can be considered independent of another
+library(tidyverse)
+Box<-rep(1:6,15000)
+Box
+mean(Box)
+sd(Box)
+#We will draw 100 tickets at a time, and calculate the mean and standard deviation of the tickets in the sample.
+samp_size<-100
+samp<-sample(Box,size = samp_size)
+sample_mean<-mean(samp)
+sample_mean
+sample_sd<-sd(samp)
+sample_sd
+#Repeat
+samp_size<-100
+samp<-sample(Box,size = samp_size)
+sample_mean<-mean(samp)
+sample_mean
+sample_sd<-sd(samp)
+sample_sd
+#Each sample is different, with a different mean and standard deviation. We will now do a simulation, and draw samples of size 100 a 1000 times
+#Set seed for reproducibility
+set.seed(123)
+samp_size<-100
+simuls<-1000
+sample_mean<-numeric(simuls)
+sample_sd<-numeric(simuls)
+for(i in 1:simuls){
+  samp<-sample(Box,size = samp_size)
+  sample_mean[i]<-mean(samp)
+  sample_sd[i]<-sd(samp)}
+sample_mean_store<-sample_mean
+#Plot
+samp_dist<-tibble(sample_mean,sample_sd)
+ggplot(samp_dist,aes(sample_mean))+geom_histogram()
+ggplot(samp_dist,aes(sample_mean))+geom_density(fill="grey80",linetype=2)+stat_function(fun = dnorm,args = list(mean=mean(samp_dist$sample_mean),sd=sd(samp_dist$sample_sd)),linetype=1)
+#The sampling distribution of the means approximately matches a normal distribution.plot the distribution of the sample standard deviations
+ggplot(samp_dist,aes(sample_sd))+geom_histogram()
+mean(sample_sd)
+#Nb:The mean of the distribution of the sample standard deviations is also approximately equal to the standard deviation of the box
+
+
+#Causal Inference
+library(MatchIt)
+data("lalonde")
+#writing the data into a csv file
+write.csv(lalonde,"Labour_Trainingdata.csv")
+#Loading the csv file
+library(readr)
+Labour_Trainingdata <- read_csv("Labour_Trainingdata.csv")
+View(Labour_Trainingdata)
+attach(Labour_Trainingdata)
+library(cobalt)
+#Covariate balance before matching
+love.plot(treat~age+educ+race+married+nodegree+re74+re75,data=Labour_Trainingdata,stars = "std")
+library(Matching)
+library(rgenoud)
+mod_la1<-lm(re78~treat,data = Labour_Trainingdata)
+mod_la2<-lm(re78~treat+age+educ+race+married+nodegree+re74+re75,data = Labour_Trainingdata)
+texreg(list(mod_la1,mod_la2),caption = "Regression with Labour Training data",ci.force = T,ci.test = NULL)
+# seed for reproducibility
+match.labour<-matchit(treat~age+educ+race+married+nodegree+re74+re75,data = Labour_Trainingdata,method = "genetic",replace = FALSE,pop.size=200,print=0,caliper = 0.4)
+print(match.labour)
+match.labour
+love.plot(match.labour,stars = "std")
+#Covariate balance has improved after matching
+match_datalabour<-match.data(match.labour)
+ggplot(Labour_Trainingdata,aes(x=factor(treat),y=re78))+geom_boxplot()+coord_flip()
+ggplot(match_datalabour,aes(x=factor(treat),y=re78))+geom_boxplot()+coord_flip()
+#In the unmatched data the median and the 75th percentile values of re78 are higher in the control group, the opposite is true in matched data
+mod_lamat1<-lm(re78~treat,data = match_datalabour)
+mod_lamat2<-lm(re78~treat+age+educ+race+nodegree+married+re74+re75,data = match_datalabour)
+texreg(list(mod_lamat1,mod_lamat2))
+#Sensitivity analysis
+#The sensitivity analysis asks how much hidden bias can be present—that is, how large can  be—before the qualitative conclusions of the study begin to change. A study is highly sensitive to hidden bias if the conclusions change for just barely larger than 1, and it is insensitive if the conclusions change only for quite large values of Tau
+library(rbounds)
+Y<-Labour_Trainingdata$re78
+Tr<-Labour_Trainingdata$treat
+X<-cbind(Labour_Trainingdata$age,Labour_Trainingdata$educ,Labour_Trainingdata$race,Labour_Trainingdata$married,Labour_Trainingdata$nodegree,Labour_Trainingdata$re74,Labour_Trainingdata$re75)
+Balancemat<-cbind(Labour_Trainingdata$age,I(Labour_Trainingdata$age^2),Labour_Trainingdata$educ,I(Labour_Trainingdata$educ^2),Labour_Trainingdata$race,Labour_Trainingdata$married,Labour_Trainingdata$nodegree,Labour_Trainingdata$re74,I(Labour_Trainingdata$re74^2),Labour_Trainingdata$re75,I(Labour_Trainingdata$re75^2),I(Labour_Trainingdata$re74*Labour_Trainingdata$re75),I(Labour_Trainingdata$age*Labour_Trainingdata$nodegree),I(Labour_Trainingdata$educ*Labour_Trainingdata$re74),I(Labour_Trainingdata$educ*Labour_Trainingdata$re75))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
