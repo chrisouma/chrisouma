@@ -1,0 +1,87 @@
+---
+title: "Bank loan default prediction"
+author: "Chrisphine"
+date: "2024-06-19"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r}
+#Importing the dataset
+library(readr)
+bankloan <- read_csv("C:/Users/Admin/Downloads/bank-loan.csv")
+View(bankloan)
+#Checking for missing values
+any(is.na(bankloan))
+bankloan<-na.omit(bankloan)
+#Descriptives
+library(arsenal)
+library(kableExtra)
+tabs<-tableby(default~age,data = bankloan,cat.stats=c("N","countrowpct"),digits=2L)
+summary(tabs,text=T)
+#Fitting a logistic regression
+logitmod<-glm(bankloan$default~bankloan$ed+bankloan$debtinc+bankloan$creddebt+bankloan$othdebt,family = binomial(link = "logit"),data = bankloan)
+summary(logitmod)
+plot(logitmod)
+#fitting a classification tree
+library(rpart)
+#setting seed for reproducibility
+set.seed(1234)
+ind<-sample(2,nrow(bankloan),replace = T,prob = c(0.7,0.3))
+#Let one be train set and set two be test set
+banktrain<-bankloan[ind==1,]
+banktest<-bankloan[ind==2,]
+bankplot<-rpart(default~ed+debtinc+creddebt+othdebt,data = banktrain,method = 'class')
+library(rpart.plot)
+rpart.plot(bankplot,type = 1,extra = 1)
+library(hexbin)
+library(WVPlots)
+library(ggplot2)
+HexBinPlot(bankloan,"ed","debtinc","debt as a function of education")+geom_smooth(color="blue",se=FALSE)
+BinaryYScatterPlot(bankloan,"debtinc","default",title = "Probability of default by debtinc")
+ClevelandDotPlot(bankloan,"age",sort = 1,title = "Bank loan by age")+coord_flip()
+ggplot(bankloan,aes(x=age,fill =employ))+geom_bar(position = 'dodge')+scale_fill_brewer()+coord_flip()
+printcp(bankplot)
+plotcp(bankplot)
+#Predicting the model
+bankttrainpred<-predict(bankplot,banktrain,type = 'class')
+print(bankttrainpred)
+library(caret)
+#confusion matrix
+bankttrainpred<-as.factor(bankttrainpred)
+banktrain$default<-as.factor(banktrain$default)
+confusionMatrix(bankttrainpred,banktrain$default,positive = '1')
+#Predicting on the test set
+bankplot1<-rpart(default~.,data = banktest,method = 'class')
+banktestpred<-predict(bankplot1,banktest,type = 'class')
+#Confusion matrix
+banktestpred<-as.factor(banktestpred)
+banktest$default<-as.factor(banktest$default)
+confusionMatrix(banktestpred,banktest$default,positive = '1')
+#diagnostic techniques
+#Goodness of fit test
+drop1(logitmod,test = 'Chisq')
+drop1(logitmod,test ='Rao')
+drop1(logitmod,test = 'LRT')
+drop1(logitmod,test = 'F')
+drop1(logitmod,test = 'none')
+#Hosmer-Lemeshow test
+library(ResourceSelection)
+(hosmer_test<-hoslem.test(logitmod$y,fitted(logitmod),g=5))
+#Graphically plotiting the hosmer-lemeshow test
+library(ggplot2)
+hosmerplot<-data.frame(obs_p=hosmer_test$observed[,2],exp_p=hosmer_test$expected[,2])
+ggplot(hosmerplot,aes(x=obs_p,y=exp_p))+geom_point()+geom_smooth()+theme_bw()+geom_abline(intercept = 0,slope = 1,size=0.5)
+#Assesing the model goodness using the Psuedo-R2
+library(DescTools)
+PseudoR2(logitmod,c("McFadden","McFaddenAdj","CoxSnell","Nagelkerke"))
+#Computing the odds ratio
+library(epiDisplay)
+logistic.display(logitmod)
+
+
+
+
+```
+
