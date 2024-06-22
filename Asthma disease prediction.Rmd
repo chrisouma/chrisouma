@@ -1,0 +1,103 @@
+---
+title: "Asthma Disease prediction"
+author: "Chrisphine"
+date: "2024-06-20"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r}
+#Importing the dataset
+library(readr)
+asthma_data <- read_csv("C:/Users/Admin/Downloads/asthma data.csv")
+View(asthma_data)
+#Having a glimpse of the dataset
+library(tidyverse)
+glimpse(asthma_data)
+library(arsenal)
+library(kableExtra)
+tabel<-tableby(Gender~ExerciseInduced,data = asthma_data,cat.stats=c("Nmiss","N","countrowpct"),digits=3L)
+summary(tabel,text=T)
+#Checking for missing values
+any(is.na(asthma_data))
+#Fitting a logistic model
+Logitas<-glm(asthma_data$Diagnosis~asthma_data$BMI+asthma_data$Wheezing+asthma_data$PollutionExposure+asthma_data$DustExposure,data = asthma_data,family = binomial(link = 'logit'))
+summary(Logitas)
+library(car)
+#Testing for multicollinearity
+vif(Logitas)
+#Plotting
+plot(Logitas)
+#Diagnostic tests
+#Goodness of fit test
+drop1(Logitas,test = 'Chisq')
+drop1(Logitas,test = 'LRT')
+drop1(Logitas,test = 'Rao')
+drop1(Logitas,test = 'F')
+#Hosmer test
+library(ResourceSelection)
+(hosmer<-hoslem.test(Logitas$y,fitted(Logitas),g=10))
+#Exponentiating the coefficients
+exp(coef(Logitas))
+#Plotting the Hosmer lemeshow test
+library(ggplot2)
+homserrplot<-data.frame(obs_p=hosmer$observed[,2],exp_p=hosmer$expected[,2])
+ggplot(homserrplot,aes(x=obs_p,y=exp_p))+geom_point()+geom_smooth()+theme_bw()+geom_abline(intercept = 0,slope = 1,size=0.5)
+#Method 2 for hosmer test
+library(glmtoolbox)
+hltest(Logitas,g=10)
+#Model assessment using the Pseudo-R2
+library(DescTools)
+PseudoR2(Logitas,c('McFadden','McFaddenAdj','CoxSnell','Nagelkerke'))
+#Computing the odds ratio
+library(epiDisplay)
+logistic.display(Logitas)
+##Fitting a classification
+library(rpart)
+#setting seed for reproducibility
+set.seed(1234)
+Ast<-sample(2,nrow(asthma_data),replace = T,prob = c(0.8,0.2))
+#splitting into training and test sets
+asthtrain<-asthma_data[Ast==1,]
+asthtest<-asthma_data[Ast==2,]
+asthplot<-rpart(Diagnosis~.,data = asthtrain,method = 'class')
+library(rpart.plot)
+rpart.plot(asthplot,type = 1,extra = 1)
+library(hexbin)
+library(WVPlots)
+library(ggplot2)
+HexBinPlot(asthma_data,"DustExposure","Wheezing","DustExposure as a function of Wheezing")+geom_smooth(color='navy',se=FALSE)
+BinaryYScatterPlot(asthma_data,"Wheezing","Diagnosis",title = 'Probability of diagnosis by wheezing')
+ClevelandDotPlot(asthma_data,"Smoking",sort = 1,title = "Asthma by smoking")+coord_flip()
+printcp(asthplot)
+plotcp(asthplot)
+#Model prediction
+asthpredict<-predict(asthplot,asthtrain,type = 'class')
+print(asthpredict)
+#Model evaluation using the confusion matrix
+library(caret)
+asthpredict<-as.factor(asthpredict)
+asthtrain$Diagnosis<-as.factor(asthtrain$Diagnosis)
+confusionMatrix(asthpredict,asthtrain$Diagnosis,positive = '1')
+#ROC curves
+library(ROCR)
+library(pROC)
+#receiver operating characteristics curve
+p1<-predict(asthplot,asthtest,type = 'prob')
+p1<-p1[,2]
+r<-multiclass.roc(asthtest$Diagnosis,p1,percent=TRUE)
+Roc<-r[['rocs']]
+r1<-Roc[[1]]
+plot.roc(r1,print.auc = TRUE,auc.polygon = TRUE,grid = c(0.1,0.2),grid.col = c('navy','red'),max.auc.polygon = TRUE,auc.polygon.col = 'lightblue',print.thres = TRUE,main='ROC CURVE')
+#Predictions onthe test data
+asthtepred<-predict(asthplot,asthtest,type = 'class')
+#Evaluating performance on the test data
+asthtepred<-as.factor(asthtepred)
+asthtest$Diagnosis<-as.factor(asthtest$Diagnosis)
+confusionMatrix(asthtepred,asthtest$Diagnosis,positive = '1')
+
+
+
+```
+
