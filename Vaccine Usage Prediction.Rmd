@@ -1,0 +1,114 @@
+---
+title: "H1N1 flu vaccine prediction"
+author: "Chrisphine"
+date: "2024-06-27"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r}
+#Importing the vaccine prediction dataset
+library(readr)
+vaccine_prediction <- read_csv("C:/Users/Admin/Downloads/vaccine_prediction.csv")
+View(vaccine_prediction)
+library(tidyverse)
+#Having glimpse of the data set
+glimpse(vaccine_prediction)
+#Checking for missing values
+sum(is.na(vaccine_prediction))
+vaccineclean<-na.omit(vaccine_prediction)
+#Glimpse of cleaned data
+glimpse(vaccineclean)
+library(WVPlots)
+library(ggplot2)
+library(hexbin)
+#Clevelandplot for the dataset
+ClevelandDotPlot(vaccineclean,"census_msa",sort = 1,title = 'flue vaccine by census')+coord_flip()
+ClevelandDotPlot(vaccineclean,"age_bracket",sort = 1,title = 'flue vaccine by age bracket')+coord_flip()
+ClevelandDotPlot(vaccineclean,"qualification",sort = 1,title = 'flue vaccine by qualification')+coord_flip()
+ClevelandDotPlot(vaccineclean,"income_level",sort = 1,title = 'flue vaccine by income')+coord_flip()
+ClevelandDotPlot(vaccineclean,"employment",sort = 1,title = 'flue vaccine by employment')+coord_flip()
+ggplot(vaccineclean,aes(x=age_bracket,fill = income_level))+geom_bar(position = 'dodge')+scale_fill_brewer()+coord_flip()
+ggplot(vaccineclean,aes(x=age_bracket,fill = qualification))+geom_bar(position = 'dodge')+scale_fill_brewer()+coord_flip()
+ggplot(vaccineclean,aes(x=age_bracket,fill = employment))+geom_bar(position = 'dodge')+scale_fill_brewer()+coord_flip()
+ggplot(vaccineclean,aes(x=age_bracket,fill = census_msa))+geom_bar(position = 'dodge')+scale_fill_brewer()+coord_flip()
+ggplot(vaccineclean,aes(x=age_bracket,fill = marital_status))+geom_bar(position = 'dodge')+scale_fill_brewer()+coord_flip()
+ggplot(vaccineclean,aes(x=age_bracket,fill = sex))+geom_bar(position = 'dodge')+scale_fill_brewer()+coord_flip()
+ggplot(vaccineclean,aes(x=age_bracket,fill = housing_status))+geom_bar(position = 'dodge')+scale_fill_brewer()+coord_flip()
+ggplot(vaccineclean,aes(x=sex,fill = income_level))+geom_bar(position = 'dodge')+scale_fill_brewer()+coord_flip()
+library(arsenal)
+library(kableExtra)
+tabs<-tableby(sex~age_bracket+employment+income_level+qualification+housing_status+census_msa+marital_status,data = vaccineclean,cat.stats=c("Nmiss","N","countrowpct"),digits=3L)
+summary(tabs,text=T)
+#Fitting a simple logistic regression
+Snlr<-glm(h1n1_vaccine~employment,data = vaccineclean,family = binomial(link = 'logit'))
+summary(Snlr)
+#Computing the odds ratios
+library(epiDisplay)
+logistic.display(Snlr)
+#Evaluating the model performance
+library(DescTools)
+drop1(Snlr,test = 'Chisq')
+drop1(Snlr,test = 'Rao')
+drop1(Snlr,test = 'LRT')
+drop1(Snlr,test = 'F')
+#Multiple regression
+mnlr<-glm(h1n1_vaccine~employment+income_level+h1n1_worry+h1n1_awareness+chronic_medic_condition+cont_child_undr_6_mnths+age_bracket,data = vaccineclean,family = binomial(link = 'logit'))
+ summary(mnlr)
+ plot(mnlr)
+#Goodness of fit test
+ drop1(mnlr,test = 'Chisq')
+ drop1(mnlr,test = 'LRT')
+ drop1(mnlr,test = 'Rao')
+ drop1(mnlr,test = 'F')
+ #Hosmer lemeshow test
+ library(ResourceSelection)
+ (mnlhosmer<-hoslem.test(mnlr$y,fitted(mnlr),g=10))
+ #Plotting the hosmer lemeshow 
+ mnlrhosmerplot<-data.frame(obs_p=mnlhosmer$observed[,2],exp_p=mnlhosmer$expected[,2])
+ggplot(mnlrhosmerplot,aes(x=obs_p,y=exp_p))+geom_point()+geom_smooth()+theme_bw()+geom_abline(intercept = 0,slope = 1,size=0.5)
+PseudoR2(mnlr,c("McFadden","McFaddenAdj","Nagelkerke","CoxSnell"))
+#Checking for multicollinearity
+library(car)
+vif(mnlr)
+#Fitting the classification tree
+#Setting seed for reproducibility
+set.seed(1234)
+#Splitting dataset into train and set respectively
+Vacsample<-sample(2,nrow(vaccineclean),replace = TRUE,prob = c(0.8,0.2))
+vactrain<-vaccineclean[Vacsample==1,]
+vactest<-vaccineclean[Vacsample==2,]
+library(rpart)
+vaccplot<-rpart(h1n1_vaccine~.,data = vactrain,method = 'class')
+library(rpart.plot)
+rpart.plot(vaccplot,type = 1,extra = 1)
+printcp(vaccplot)
+plotcp(vaccplot)
+#Making predictions
+vaccpred<-predict(vaccplot,vactrain,type = 'class')
+#Computing the confusion matrix
+library(caret)
+vaccpred<-as.factor(vaccpred)
+vactrain$h1n1_vaccine<-as.factor(vactrain$h1n1_vaccine)
+confusionMatrix(vaccpred,vactrain$h1n1_vaccine,positive = '1')
+#Predictions on the test data
+vactpred<-predict(vaccplot,vactest,type = 'class')
+#Computing the confusion matrix
+vactpred<-as.factor(vactpred)
+vactest$h1n1_vaccine<-as.factor(vactest$h1n1_vaccine)
+confusionMatrix(vactpred,vactest$h1n1_vaccine,positive = '1')
+#Using bagging to improve prediction
+library(ipred)
+library(rpart)
+#Setting seed for reproducibility
+set.seed(1234)
+#Fit the bagging model
+Bagg<-bagging(formula =h1n1_vaccine~.,data = vaccineclean,nbagg=100,coob=TRUE,control=rpart.control(minsplit = 2,cp=0,min_depth=2))
+Bagg
+
+
+
+
+```
+
