@@ -1,0 +1,189 @@
+---
+title: "Term deposit"
+author: "Chrisphine"
+date: "2024-08-10"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r}
+library(readxl)
+Clean_Bank_data <- read_excel("C:/Users/Admin/Downloads/Clean Bank_data.xlsx")
+View(Clean_Bank_data)
+#Checking for missing values
+any(is.na(Clean_Bank_data))
+#Having a glimpse of the data set
+library(tidyverse)
+glimpse(Clean_Bank_data)
+#Checking for data consistencies
+table(Clean_Bank_data$Education)
+table(Clean_Bank_data$Job)
+#Data preprocessing
+##Creating a categorical variable Y
+Clean_Bank_data$Y[Clean_Bank_data$y=="yes"]<-1
+Clean_Bank_data$Y[Clean_Bank_data$y=="no"]<-0
+#Creating a categorical variable named agebracket
+Clean_Bank_data$Agebracket[Clean_Bank_data$Age<35]<-1
+Clean_Bank_data$Agebracket[Clean_Bank_data$Age>=35 &Clean_Bank_data$Age<50]<-2
+Clean_Bank_data$Agebracket[Clean_Bank_data$Age>=50]<-3
+table(Clean_Bank_data$Agebracket)
+#Labelling the created categorical variable
+Clean_Bank_data$Agebracket=factor(Clean_Bank_data$Agebracket,levels = c(1,2,3),labels = c("Young_Adults","Mid_Adults","Elderly"))
+library(table1)
+table1(~factor(Clean_Bank_data$Agebracket))
+table1(~factor(Clean_Bank_data$Job))
+table1(~factor(Clean_Bank_data$Marital))
+table1(~factor(Clean_Bank_data$Agebracket)| Clean_Bank_data$Job,data = Clean_Bank_data)
+table1(~factor(Clean_Bank_data$Agebracket)| Clean_Bank_data$Marital,data = Clean_Bank_data)
+table1(~factor(Clean_Bank_data$Agebracket)| Clean_Bank_data$Education,data = Clean_Bank_data)
+table1(~factor(Clean_Bank_data$Agebracket)| Clean_Bank_data$Default,data = Clean_Bank_data)
+table1(~factor(Clean_Bank_data$Agebracket)| Clean_Bank_data$Housing,data = Clean_Bank_data)
+table1(~factor(Clean_Bank_data$Agebracket)| Clean_Bank_data$Loan,data = Clean_Bank_data)
+table1(~factor(Clean_Bank_data$Agebracket)| Clean_Bank_data$Contact,data = Clean_Bank_data)
+#Exploratory data analysis
+library(WVPlots)
+library(ggplot2)
+ClevelandDotPlot(Clean_Bank_data,"Agebracket",sort = 1,title = "Agebracket distribution")+coord_flip()
+ClevelandDotPlot(Clean_Bank_data,"Job",sort = 1,title = "Job distribution")+coord_flip()
+ClevelandDotPlot(Clean_Bank_data,"Education",sort = 1,title = "Education distribution")+coord_flip()
+ClevelandDotPlot(Clean_Bank_data,"Marital",sort = 1,title = "Marital distribution")+coord_flip()
+ClevelandDotPlot(Clean_Bank_data,"Contact",sort = 1,title = "Contact distribution")+coord_flip()
+ClevelandDotPlot(Clean_Bank_data,"Loan",sort = 1,title = "Loan distribution")+coord_flip()
+ClevelandDotPlot(Clean_Bank_data,"Housing",sort = 1,title = "Housing distribution")+coord_flip()
+ggplot(Clean_Bank_data,aes(x=Agebracket,fill = Housing))+geom_bar(position = "dodge")+scale_fill_brewer()+coord_flip()
+ggplot(Clean_Bank_data,aes(x=Agebracket,fill = Loan))+geom_bar(position = "dodge")+scale_fill_brewer()+coord_flip()
+ggplot(Clean_Bank_data,aes(x=Agebracket,fill = Education))+geom_bar(position = "dodge")+scale_fill_brewer()+coord_flip()
+ggplot(Clean_Bank_data,aes(x=Agebracket,fill = Marital))+geom_bar(position = "dodge")+scale_fill_brewer()+coord_flip()
+ggplot(Clean_Bank_data,aes(x=Agebracket,fill = Job))+geom_bar(position = "dodge")+scale_fill_brewer()+coord_flip()
+#descriptive statistics
+library(arsenal)
+library(kableExtra)
+tabs<-tableby(Y~Agebracket+Education+Job+Marital+Loan+Housing+Campaign+Default+Contact,data = Clean_Bank_data,cat.stats=c("Nmiss","N","countrowpct"),digits=3L)
+summary(tabs,text = T)
+#fitting a logistic regression
+MNLR<-glm(Y~Education+Job+Marital+Default+Campaign,data = Clean_Bank_data,family = binomial(link = 'logit'))
+summary(MNLR)
+plot(MNLR)
+#Evaluating model performance
+library(DescTools)
+drop1(MNLR,test = 'Chisq')
+drop1(MNLR,test = 'Rao')
+drop1(MNLR,test = 'LRT')
+drop1(MNLR,test = 'F')
+#Hosmer Lemeshow test
+library(ResourceSelection)
+(MNLRhosmer<-hoslem.test(MNLR$y,fitted(MNLR),g=10))
+PseudoR2(MNLR,c("McFadden","McFaddenAdj","Nagelkerke","CoxSnell"))
+#Fitting the classification tree
+#Setting seed for reproducibility
+set.seed(4567)
+#Splitig the dataset into training and testing set
+Banksample<-sample(2,nrow(Clean_Bank_data),replace = TRUE,prob = c(0.7,0.3))
+Banktrain<-Clean_Bank_data[Banksample==1,]
+Banktest<-Clean_Bank_data[Banksample==2,]
+#Building a classification tree
+library(rpart)
+Bankplot<-rpart(Y~.,data = Banktrain,method = 'class')
+library(rpart.plot)
+rpart.plot(Bankplot,type = 1,extra = 1)
+printcp(Bankplot)
+plotcp(Bankplot)
+#Making predictions
+bankpred<-predict(Bankplot,Banktrain,type = 'class')
+#computing the confusion matrix
+library(caret)
+bankpred<-as.factor(bankpred)
+Banktrain$Y<-as.factor(Banktrain$Y)
+confusionMatrix(bankpred,Banktrain$Y,positive = '1')
+levels(bankpred)
+levels(Banktrain$Y)
+#Predictions on test data
+Bankpred<-predict(Bankplot,newdata = Banktest,type = 'class')
+#Confusion matrix
+Bankpred<-as.factor(Bankpred)
+Banktest$Y<-as.factor(Banktest$Y)
+confusionMatrix(Bankpred,Banktest$Y,positive = '1')
+#Performing cross-validation
+CV<-trainControl(method = 'cv',number = 10)
+#model training with cross-validation
+CV_model<-train(Y~.,data = Banktrain,method='rpart',trControl=CV)
+print(CV_model)
+plot(CV_model)
+#Fine- tuning the cp parameter
+tuned_model<-train(Y~.,data = Banktrain,method='rpart',trControl=CV,tuneGrid=expand.grid(cp=seq(0,0.5,by=0.05)))
+#Print the tuned model results
+print(tuned_model)
+plot(tuned_model)
+#since overfitting still persists consider using random forest
+library(randomForest)
+#Training the random forest model
+set.seed(789)
+Bankforest<-randomForest(Y~.,data = Banktrain,importance=TRUE,ntree=500)
+print(Bankforest)
+#Model predictions
+BankForest_train<-predict(Bankforest,Banktrain)
+#Computing the confusion matrix
+confusionMatrix(BankForest_train,Banktrain$Y)
+#Prediction on the test set
+BankForest_test<-predict(Bankforest,newdata = Banktest)
+#Confusionmatrix on the test set
+confusionMatrix(BankForest_test,Banktest$Y)
+#Plotting
+varImpPlot(Bankforest)
+#Cross-validation
+library(caret)
+Bank_CV<-trainControl(method = 'cv',number = 10,search = 'grid')
+#Setting the grid for tuning
+Tuned_grid<-expand.grid(mtry=c(2,4,6,8,10))
+#Train the Model with Hyperparameter Tuning
+Bankforest_tuned<-train(Y~.,data = Banktrain,method='rf',trControl=Bank_CV,tuneGrid=Tuned_grid)
+Bankforest_CV<-train(Y~.,data = Banktrain,method='rf',trControl=Bank_CV,ntree=500)
+print(Bankforest_CV)
+#Print results
+print(Bankforest_tuned)
+#Predictions and evaluation
+best_bankforest<-Bankforest_tuned$finalModel
+best_bankforest
+#Using bagging to improve on performance
+library(ipred)
+#Fitting a bagging model
+bagging_model<-bagging(Y~.,data = Banktrain,nbagg=50)
+#Prediction on the test data
+bagging_predictions<-predict(bagging_model,newdata = Banktest)
+#Confusion matrix
+confusionMatrix(bagging_predictions,Banktest$Y)
+library(pROC)
+predictions_prob<-predict(bagging_model,newdata = Banktest,type = "prob")
+# Extract probabilities for class
+prob_positive_class<-predictions_prob[,"1"]
+# Get actual class labels
+actual_labels<-Banktest$Y
+roc_curve<-roc(actual_labels,prob_positive_class,levels=c("0","1"))
+auc_value<-auc(roc_curve)
+# Print and plot results
+print(paste("AUC:",round(auc_value,3)))
+plot(roc_curve,main=paste("ROC Curve(AUC=",round(auc_value,3),")"))
+#Cost-sensitive learning
+##Adjusting the Decision Threshold
+#Fitting the original model
+MNLR_model<-glm(Y~Education+Job+Marital+Default+Campaign,data = Clean_Bank_data,family = binomial())
+#Predict probabilities
+probabilities<-predict(MNLR_model,type = "response")
+#Adjust the threshold
+threshold<-0.3
+predicted_classes<-ifelse(probabilities>threshold,1,0)
+#Confusion matrix
+confusion_Matrix<-table(Predicted=predicted_classes,Actual=Clean_Bank_data$Y)
+confusion_Matrix
+#evaluate the model
+library(caret)
+confusionMatrix(confusion_Matrix)
+#Weighted Logistic Regression
+MNLR_weighted <- glm(Y ~ Education + Job +Marital + Default + Campaign,
+                      data = Clean_Bank_data,
+                      family = binomial(),
+                      weights = ifelse(Y == 1, 10, 1))
+summary(MNLR_weighted)
+```
+
